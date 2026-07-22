@@ -1,0 +1,20 @@
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Safety net: never commit environment files or dependencies at the repo root.
+# (web/ has its own .gitignore covering node_modules, dist, and *.local.)
+.env
+.env.*
+!.env.example
+node_modules/
+
+# Confidential assessment brief — must never be pushed to a public repo.
+NP SDE Assessment Challenge.pdf
+
+# Stray empty lockfile created at the repo root by accident (safe to delete).
+/package-lock.json

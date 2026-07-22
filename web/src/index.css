@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   Design tokens (Tailwind v4 @theme)
+   Each token becomes utilities automatically, e.g.
+   --color-canvas -> bg-canvas / text-canvas / border-canvas
+   --font-display -> font-display
+------------------------------------------------------------------ */
+@theme {
+  /* Fonts */
+  --font-display: 'Instrument Serif', ui-serif, Georgia, serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Core surfaces & text */
+  --color-canvas: #f6f4fb;
+  --color-surface: #ffffff;
+  --color-line: #ece7f5;
+  --color-ink: #2e2a3f;
+  --color-muted: #7a7391;
+
+  /* Column accents (accent / soft tint / readable ink) */
+  --color-todo: #8aa0f2;
+  --color-todo-tint: #eef1fd;
+  --color-todo-ink: #34459e;
+
+  --color-progress: #f6a96b;
+  --color-progress-tint: #fdf0e4;
+  --color-progress-ink: #9a5410;
+
+  --color-review: #b98bee;
+  --color-review-tint: #f5edfc;
+  --color-review-ink: #6b33a8;
+
+  --color-done: #63cfa0;
+  --color-done-tint: #e3f7ee;
+  --color-done-ink: #1b7a54;
+
+  /* Semantic accents (priority / due state) */
+  --color-high: #f4736e;
+  --color-high-tint: #fbe6e5;
+  --color-high-ink: #9a2e2a;
+
+  --color-due: #f2b34c;
+  --color-due-tint: #fdeee1;
+  --color-due-ink: #9a5410;
+
+  --color-low: #86bee8;
+  --color-low-tint: #e4f0fa;
+  --color-low-ink: #2c6ea0;
+}
+
+/* ------------------------------------------------------------------
+   Base
+------------------------------------------------------------------ */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
