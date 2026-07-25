@@ -23,6 +23,7 @@ import { TaskCard } from './components/TaskCard'
 import { Avatar } from './components/Avatar'
 import { NewTaskProvider, useNewTask } from './context/NewTaskContext'
 import { ToastProvider } from './context/ToastContext'
+import { WinsProvider } from './context/WinsContext'
 import { useTasks, useMoveTask, useAddAssignees } from './hooks/useTasks'
 import { useAddMemberToTeam } from './hooks/useTeams'
 import { computeMove } from './lib/position'
@@ -287,9 +288,11 @@ export default function App() {
   return (
     <AuthGate>
       <ToastProvider>
-        <NewTaskProvider>
-          <Workspace />
-        </NewTaskProvider>
+        <WinsProvider>
+          <NewTaskProvider>
+            <Workspace />
+          </NewTaskProvider>
+        </WinsProvider>
       </ToastProvider>
     </AuthGate>
   )

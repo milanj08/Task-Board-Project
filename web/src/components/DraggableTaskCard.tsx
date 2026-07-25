@@ -7,6 +7,7 @@ import type { TaskWithAssignees } from '../types'
 import { NEXT_MOVE } from '../lib/columns'
 import { computeEnd } from '../lib/position'
 import { useTasks, useMoveTask, useRemoveAssignee, useDeleteTask } from '../hooks/useTasks'
+import { useWins } from '../context/WinsContext'
 import { TaskCard } from './TaskCard'
 
 const DISSOLVE_MS = 4000
@@ -21,6 +22,7 @@ export function DraggableTaskCard({ task }: { task: TaskWithAssignees }) {
   const moveTask = useMoveTask()
   const removeAssignee = useRemoveAssignee()
   const deleteTask = useDeleteTask()
+  const { recordWin } = useWins()
   const [expanded, setExpanded] = useState(false)
   const [dissolving, setDissolving] = useState(false)
   const timerRef = useRef<number | null>(null)
@@ -59,7 +61,10 @@ export function DraggableTaskCard({ task }: { task: TaskWithAssignees }) {
 
   function startDissolve() {
     setDissolving(true)
-    timerRef.current = window.setTimeout(() => deleteTask.mutate(task.id), DISSOLVE_MS)
+    timerRef.current = window.setTimeout(() => {
+      deleteTask.mutate(task.id)
+      recordWin()
+    }, DISSOLVE_MS)
   }
 
   function cancelDissolve() {

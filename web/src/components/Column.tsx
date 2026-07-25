@@ -1,24 +1,52 @@
-import { useState } from 'react'
-import { useDroppable } from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import type { ColumnDef } from '../lib/columns'
-import type { TaskWithAssignees } from '../types'
-import { DraggableTaskCard } from './DraggableTaskCard'
-import { AddTaskCard } from './AddTaskCard'
+import { useState } from "react";
+import { useDroppable } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import type { ColumnDef } from "../lib/columns";
+import type { TaskWithAssignees } from "../types";
+import { useWins } from "../context/WinsContext";
+import { DraggableTaskCard } from "./DraggableTaskCard";
+import { AddTaskCard } from "./AddTaskCard";
 
-export function Column({ column, tasks }: { column: ColumnDef; tasks: TaskWithAssignees[] }) {
-  const { setNodeRef, isOver } = useDroppable({ id: column.status, data: { type: 'column' } })
-  const isTodo = column.status === 'todo'
-  const isDone = column.status === 'done'
-  const [showDone, setShowDone] = useState(false)
+export function Column({
+  column,
+  tasks,
+}: {
+  column: ColumnDef;
+  tasks: TaskWithAssignees[];
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.status,
+    data: { type: "column" },
+  });
+  const isTodo = column.status === "todo";
+  const isDone = column.status === "done";
+  const [showDone, setShowDone] = useState(true);
+  const { wins } = useWins();
 
-  // Done starts collapsed once it has cards; the user can reveal them.
-  const collapsedDone = isDone && !showDone && tasks.length > 0
+  // Done stays open until the user explicitly hides it.
+  const collapsedDone = isDone && !showDone && tasks.length > 0;
+
+  // Done's empty state doubles as a running tally — it's the one column where
+  // being empty doesn't mean "nothing happened here," it means everything that
+  // happened here got cleared, so the static "no wins yet" copy only fits wins === 0.
+  const emptyMessage = isDone
+    ? wins === 0
+      ? column.empty
+      : wins === 1
+        ? "1 win banked! Go bag another."
+        : `${wins} wins banked! Keep it going.`
+    : column.empty;
 
   return (
     <div className="flex max-h-full min-w-[300px] flex-1 snap-center snap-always flex-col">
       <div className="mb-2 flex items-center gap-2 px-1">
-        <span className={`h-2.5 w-2.5 rounded-full ${column.dot}`} aria-hidden="true" />
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${column.dot}`}
+          aria-hidden="true"
+        />
         <h2 className="font-display text-2xl uppercase tracking-wide leading-none text-ink">
           {column.label}
         </h2>
@@ -27,7 +55,7 @@ export function Column({ column, tasks }: { column: ColumnDef; tasks: TaskWithAs
       <div
         ref={setNodeRef}
         className={`flex min-h-0 flex-col gap-2 overflow-y-auto rounded-xl p-2 ring-2 transition-colors ${column.tint} ${
-          isOver ? 'ring-ink/15' : 'ring-transparent'
+          isOver ? "ring-ink/15" : "ring-transparent"
         }`}
       >
         {isTodo && <AddTaskCard />}
@@ -52,11 +80,16 @@ export function Column({ column, tasks }: { column: ColumnDef; tasks: TaskWithAs
               </button>
             )}
 
-            {tasks.length === 0 && column.empty && (
-              <p className="px-3 py-8 text-center text-sm text-muted">{column.empty}</p>
+            {tasks.length === 0 && emptyMessage && (
+              <p className="px-3 py-8 text-center text-sm text-muted">
+                {emptyMessage}
+              </p>
             )}
 
-            <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext
+              items={tasks.map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
               {tasks.map((t) => (
                 <DraggableTaskCard key={t.id} task={t} />
               ))}
@@ -65,5 +98,5 @@ export function Column({ column, tasks }: { column: ColumnDef; tasks: TaskWithAs
         )}
       </div>
     </div>
-  )
+  );
 }
