@@ -52,7 +52,7 @@ export function Column({ column, tasks }: { column: ColumnDef; tasks: TaskWithAs
               </button>
             )}
 
-            {tasks.length === 0 && !isTodo && column.empty && (
+            {tasks.length === 0 && column.empty && (
               <p className="px-3 py-8 text-center text-sm text-muted">{column.empty}</p>
             )}
 

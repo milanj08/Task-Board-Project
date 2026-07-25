@@ -8,13 +8,13 @@ export interface ColumnDef {
   dot: string // accent dot on the header
   tint: string // soft column background
   ink: string // readable header text
-  empty: string // playful empty-state line (blank for To do, which has the add card)
+  empty: string // playful empty-state line
 }
 
 export const COLUMNS: ColumnDef[] = [
-  { status: 'todo', label: 'To do', dot: 'bg-todo', tint: 'bg-todo-tint', ink: 'text-todo-ink', empty: '' },
+  { status: 'todo', label: 'To do', dot: 'bg-todo', tint: 'bg-todo-tint', ink: 'text-todo-ink', empty: 'Empty board. Make your move.' },
   { status: 'in_progress', label: 'In progress', dot: 'bg-progress', tint: 'bg-progress-tint', ink: 'text-progress-ink', empty: 'All quiet. Time to get rolling.' },
-  { status: 'in_review', label: 'In review', dot: 'bg-review', tint: 'bg-review-tint', ink: 'text-review-ink', empty: 'Nothing to nitpick — yet.' },
+  { status: 'in_review', label: 'In review', dot: 'bg-review', tint: 'bg-review-tint', ink: 'text-review-ink', empty: 'Nothing to nitpick...yet.' },
   { status: 'done', label: 'Done', dot: 'bg-done', tint: 'bg-done-tint', ink: 'text-done-ink', empty: 'No wins here yet. Go bag one.' },
 ]
 
