@@ -290,7 +290,4 @@ Env vars are `VITE_`-prefixed so Vite exposes them to the client; the publishabl
 
 - **GitHub:** https://github.com/milanj08/Task-Board-Project
 - **Supabase project URL:** https://zkkyzysekugsivmbkqjg.supabase.co
-- **Live frontend (Vercel):** _TBD — deployed after the app is built_
-
----
-*Next: build phase — TanStack Query provider + auth gate (guest session), then board/data hooks.*
+- **Live frontend (Vercel):** https://task-board-project-theta.vercel.app/
