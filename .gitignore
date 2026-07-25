@@ -6,6 +6,10 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
+# Claude Code: settings.json is shared project config; settings.local.json is
+# personal/machine-specific and shouldn't be committed.
+.claude/settings.local.json
+
 # Safety net: never commit environment files or dependencies at the repo root.
 # (web/ has its own .gitignore covering node_modules, dist, and *.local.)
 .env

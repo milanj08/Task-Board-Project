@@ -24,7 +24,7 @@ Bonus features committed for v1: **team members & assignees**, **due date indica
 
 ## 3. Database Schema
 
-Five tables total: `tasks` (required), `teams`, `team_members`, `task_assignees` (bonus: team members & assignees), plus `auth.users` supplied by Supabase's built-in anonymous auth. Members are grouped under teams so the sidebar can show multiple collapsible teams.
+Six tables total: `tasks` and `teams` (core), `members`, `team_members`, `task_assignees` (bonus: team members & assignees), plus `auth.users` supplied by Supabase's built-in anonymous auth. `members` is the canonical roster of people (unique name per guest); `team_members` is a many-to-many join linking people to teams; `task_assignees` links tasks directly to people. Assignment follows the *person*, not the team — a member can belong to several teams, or none, and still be assignable to any task.
 
 ### `teams`
 
@@ -32,8 +32,8 @@ Five tables total: `tasks` (required), `teams`, `team_members`, `task_assignees`
 |---|---|---|
 | `id` | uuid, PK, default `gen_random_uuid()` | unique team identifier |
 | `name` | text, not null | team display name |
-| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` | ties team to guest session; what RLS checks |
-| `created_at` | timestamptz, default `now()` | |
+| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` on delete cascade | ties team to guest session; what RLS checks |
+| `created_at` | timestamptz, not null, default `now()` | |
 
 ### `tasks`
 
@@ -45,62 +45,84 @@ Five tables total: `tasks` (required), `teams`, `team_members`, `task_assignees`
 | `status` | text, not null, default `'todo'`, check-constrained | `todo` / `in_progress` / `in_review` / `done` — drives column placement |
 | `priority` | text, not null, default `'normal'`, check-constrained | `low` / `normal` / `high` (no distinct "unset" state) |
 | `due_date` | date, nullable | powers due-date badges; compared client-side against browser-local today |
-| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` | ties task to guest session; what RLS checks |
-| `created_at` | timestamptz, default `now()` | auto-set |
-| `updated_at` | timestamptz, default `now()`, trigger-bumped | auto-updates on every edit/move; enables recency sorting & optimistic-concurrency checks |
+| `position` | double precision, not null, default `extract(epoch from clock_timestamp())` | fractional sort key within a column, so drag-and-drop reordering computes a value between two neighbors instead of renumbering every row on every move; the client (`lib/position.ts`) always sets this explicitly on create/move, the column default is just a same-convention (epoch-seconds) fallback |
+| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` on delete cascade | ties task to guest session; what RLS checks |
+| `created_at` | timestamptz, not null, default `now()` | auto-set |
+| `updated_at` | timestamptz, not null, default `now()`, trigger-bumped | auto-updates on every edit/move; enables recency sorting & optimistic-concurrency checks |
 
-### `team_members`
+### `members` (canonical roster)
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | uuid, PK, default `gen_random_uuid()` | unique member identifier |
-| `name` | text, not null | display name |
-| `color` | text, nullable | optional avatar color |
-| `team_id` | uuid, not null, references `teams(id)` on delete cascade | which team the member belongs to |
-| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` | ties roster to guest session; what RLS checks |
-| `created_at` | timestamptz, default `now()` | |
+| `id` | uuid, PK, default `gen_random_uuid()` | unique person identifier |
+| `name` | text, not null | display name; `unique (user_id, name)` — no duplicate names within one guest's roster |
+| `color` | text, nullable | avatar color |
+| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` on delete cascade | ties roster entry to guest session; what RLS checks |
+| `created_at` | timestamptz, not null, default `now()` | |
 
-**Assignment scope:** tasks are *not* scoped to a team — a single task may have assignees drawn from multiple teams (intentional; matches the free-form "drag any member onto a task" UI). Owner columns default to `auth.uid()` so client hooks never hand-stamp `user_id`; RLS `with check` remains the enforcement.
+A person is one row here no matter how many teams they're on or tasks they're assigned to — `team_members` and `task_assignees` both point back to this single identity rather than duplicating name/color per relationship.
 
-### `task_assignees` (join table)
+### `team_members` (join: person ↔ team)
+
+| Column | Type | Notes |
+|---|---|---|
+| `team_id` | uuid, not null, references `teams(id)` on delete cascade | which team |
+| `member_id` | uuid, not null, references `members(id)` on delete cascade | which person |
+| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` on delete cascade | denormalized guest tag — see RLS note below, it isn't actually what enforces access |
+| `created_at` | timestamptz, not null, default `now()` | when added to the team |
+
+Primary key: `(team_id, member_id)` — a person appears at most once per team, but the same person can belong to multiple teams (many-to-many).
+
+### `task_assignees` (join: task ↔ person)
 
 | Column | Type | Notes |
 |---|---|---|
 | `task_id` | uuid, not null, references `tasks(id)` on delete cascade | which task |
-| `team_member_id` | uuid, not null, references `team_members(id)` on delete cascade | which member |
-| `created_at` | timestamptz, default `now()` | when assigned |
+| `member_id` | uuid, not null, references `members(id)` on delete cascade | which person |
+| `created_at` | timestamptz, not null, default `now()` | when assigned |
 
-Primary key: `(task_id, team_member_id)` — supports multiple assignees per task, prevents duplicate assignment of the same member. No direct `user_id` — scope is inherited via `task_id`'s join back to `tasks`.
+Primary key: `(task_id, member_id)` — supports multiple assignees per task, prevents duplicate assignment of the same person. No `user_id` column at all — scope is inherited entirely through the `tasks` and `members` rows it links (see RLS below).
+
+**Assignment scope:** tasks are *not* scoped to a team — a single task may have assignees drawn from multiple teams, or from no team at all (intentional; matches the free-form "drag any member onto a task" UI, and the fact that assignment goes through `members` rather than `team_members`). Owner columns default to `auth.uid()` so client hooks never hand-stamp `user_id`; RLS `with check` remains the enforcement.
 
 ## 4. Row Level Security
 
 All tables have RLS enabled. Since auth is anonymous, `auth.uid()` returns a stable per-guest-session UUID and is the sole basis for every policy — no roles, no shared data.
 
-### `tasks`, `teams`, and `team_members`
+### `teams`, `tasks`, and `members`
 
-All three carry a direct `user_id` column, so all get the same four policies:
+All three carry a direct `user_id` column and get the same four policies:
 
 | Operation | Rule |
 |---|---|
 | SELECT | `user_id = auth.uid()` |
 | INSERT | `WITH CHECK (user_id = auth.uid())` |
-| UPDATE | `USING (user_id = auth.uid())` |
+| UPDATE | `USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid())` |
 | DELETE | `USING (user_id = auth.uid())` |
 
-**`team_members` extra check:** its INSERT and UPDATE policies *also* verify the target `team_id` belongs to the guest (`EXISTS … teams WHERE id = team_id AND user_id = auth.uid()`), so a member row can never be attached to another guest's team. The direct `user_id` column is a deliberate denormalization (flat, indexed RLS reads without a join through `teams`); this extra check is what keeps the two sources of truth from ever disagreeing.
+### `team_members`
+
+Three policies only — SELECT / INSERT / DELETE. There's no UPDATE policy because there's nothing to update on a pure link row; changing who's on a team means deleting one link and inserting another. The policies check that *both* the team and the person being linked belong to the guest:
+
+```sql
+EXISTS (SELECT 1 FROM teams t WHERE t.id = team_members.team_id AND t.user_id = auth.uid())
+AND
+EXISTS (SELECT 1 FROM members m WHERE m.id = team_members.member_id AND m.user_id = auth.uid())
+```
+
+So a guest can never link their team to someone else's roster entry, or vice versa, even by guessing a UUID. Note this table *does* carry its own `user_id` column, but it isn't what the policies check — it's unindexed and effectively decorative today, kept only for shape-consistency with the other tables rather than as the actual enforcement path.
 
 ### `task_assignees`
 
-No `user_id` column of its own — scope is inherited by checking that *both* the task and the team member being linked belong to the requesting guest, so a guest can't link their task to someone else's team member (or vice versa) even by guessing a UUID:
+Same shape as `team_members` — SELECT / INSERT / DELETE only, no `user_id` column at all, scope inherited by checking that *both* the task and the person being linked belong to the requesting guest:
 
 ```sql
-USING (
-  EXISTS (SELECT 1 FROM tasks WHERE tasks.id = task_assignees.task_id AND tasks.user_id = auth.uid())
-  AND
-  EXISTS (SELECT 1 FROM team_members WHERE team_members.id = task_assignees.team_member_id AND team_members.user_id = auth.uid())
-)
+EXISTS (SELECT 1 FROM tasks t WHERE t.id = task_assignees.task_id AND t.user_id = auth.uid())
+AND
+EXISTS (SELECT 1 FROM members m WHERE m.id = task_assignees.member_id AND m.user_id = auth.uid())
 ```
-Applied to SELECT/INSERT/UPDATE/DELETE alike.
+
+Applied to SELECT/INSERT/DELETE alike — a guest can't link their task to someone else's roster entry, or someone else's task to their own roster entry.
 
 ## 5. Guest Auth Flow
 
@@ -112,18 +134,7 @@ On load, check for an existing Supabase session. If none exists, call `supabase.
 
 ### Returning guests
 
-The Supabase JS client persists the anonymous session in `localStorage` by default, so a returning guest reuses the same session and the same `user_id` automatically — same tasks, same team members, every time on that device. The board is only lost if the user clears browser storage or switches browsers.
-
-### Start fresh
-
-An explicit **Start fresh** button (in a menu/settings area) lets a guest wipe their board and begin with a new identity:
-
-1. Show a confirmation dialog — this is a one-way, unrecoverable action.
-2. Delete the current guest's rows: `tasks` and `team_members` (their `task_assignees` rows cascade away automatically).
-3. Call `signInAnonymously()` again to mint a brand-new guest identity.
-4. Land on an empty board.
-
-**Note on "deleting" accounts:** the anon key cannot delete an `auth.users` row (that requires the service-role key, which must stay out of the frontend). So "start fresh" deletes the guest's *data* rows; the old anonymous auth user is orphaned but harmless. Because the old identity is discarded and the anon key can't log back into it, the old board is unrecoverable — hence the confirmation dialog.
+The Supabase JS client persists the anonymous session in `localStorage` by default, so a returning guest reuses the same session and the same `user_id` automatically — same tasks, same team members, every time on that device. The board is only lost if the user clears browser storage or switches browsers. There's no in-app reset/"start fresh" action in v1 — clearing storage is the only way to begin a new guest identity.
 
 ## 6. Frontend Architecture
 
@@ -131,7 +142,7 @@ An explicit **Start fresh** button (in a menu/settings area) lets a guest wipe t
 
 - **Supabase client** in `lib/supabase.ts` — single instance, anon key only.
 - **TanStack Query** manages all server state: caching, loading/error states, refetching, and optimistic updates with automatic rollback.
-- Components never call Supabase directly — they call hooks: `useTasks()`, `useCreateTask()`, `useUpdateTask()`, `useUpdateTaskStatus()`, `useDeleteTask()`, `useTeamMembers()`, `useCreateTeamMember()`, etc. Each mutation hook wraps a Supabase call and invalidates/optimistically updates the relevant query.
+- Components never call Supabase directly — they call hooks: tasks (`useTasks`, `useCreateTask`, `useMoveTask`, `useDeleteTask`, `useAddAssignees`, `useRemoveAssignee`), teams (`useTeams`, `useCreateTeam`, `useDeleteTeam`, `useAddMemberToTeam`, `useRemoveMemberFromTeam`), and the roster (`useMembers`, `useCreateMember`, `useDeleteMember`). Each mutation hook wraps a Supabase call and invalidates/optimistically updates the relevant query; failures also surface a toast (`context/ToastContext.tsx`).
 
 ### Sync model
 
@@ -140,22 +151,28 @@ An explicit **Start fresh** button (in a menu/settings area) lets a guest wipe t
 ### Component tree
 
 ```
-App
-├── QueryClientProvider        (TanStack Query context)
-├── AuthGate                   (ensures anon session exists before rendering board)
-└── BoardPage
-    ├── BoardHeader            (title, "Start fresh", team member management entry)
-    ├── Board                  (DndContext lives here — owns drag state)
-    │   └── Column  ×4          (droppable; todo / in_progress / in_review / done)
-    │       └── TaskCard  ×N    (draggable; title, priority, due-date badge, assignee avatars)
-    ├── NewTaskDialog           (create task: title, description, priority, due date, assignees)
-    ├── TaskDetailPanel         (view/edit a task)
-    └── TeamMemberManager       (add/remove team members: name + color)
+main.tsx
+└── QueryClientProvider         (TanStack Query context)
+    └── AuthProvider            (anon session: loading / ready / error)
+        └── App
+            └── AuthGate                    (renders children once the session is ready)
+                └── ToastProvider           (mutation-failure toasts)
+                    └── NewTaskProvider     (in-progress task-draft state)
+                        └── Workspace       (DndContext lives here — owns drag state)
+                            ├── Sidebar
+                            │   ├── MembersSection          (roster: add/remove people)
+                            │   └── TeamSection  ×N          (collapsible; add/remove people per team)
+                            │       └── DraggableMember  ×N
+                            └── Board
+                                └── Column  ×4                (droppable; todo / in_progress / in_review / done)
+                                    ├── AddTaskCard            (To Do column only — new-task draft + drop target)
+                                    └── DraggableTaskCard  ×N
+                                        └── TaskCard            (title, badges, assignees; reused in the DragOverlay)
 ```
 
 ### Drag-and-drop
 
-`@dnd-kit`'s `DndContext` lives in `Board`. Columns are droppable zones keyed by status; cards are draggable. On drop, the handler reads the target column's status and fires `useUpdateTaskStatus()` optimistically.
+`@dnd-kit`'s `DndContext` lives in `Workspace` (`App.tsx`), not in `Board`. Three draggable types share it — `task`, `member`, `team` — routed through one custom `collisionDetection` that filters valid drop targets by drag type: tasks target columns/other cards (reorder); members/teams target team sections, the new-task draft, or an open task's assignee zone. Reordering uses fractional positions (`lib/position.ts`) so a move only ever touches the one row being moved, never renumbers a column. On mobile, the sidebar is an overlay drawer sharing screen space with the board, so drop targets are also gated by what's actually visible — board targets are excluded while the drawer's open, and once a member/team drag has moved right of its pickup point it's treated as irreversibly headed for the board for the rest of that drag, so it can never land back on a team it happens to pass over. Hovering a collapsed task card for ~550ms auto-expands it mid-drag, with an explicit `measureDroppableContainers` call to re-measure its drop zone after the resize (dnd-kit doesn't reliably pick that up on its own).
 
 ## 7. Design System & UI
 
@@ -163,21 +180,20 @@ App
 
 A two-region layout:
 
-- **Left sidebar** — team & task workspace:
-  - View and create **teams**. Each team is **collapsible** to save vertical space.
-  - Under each team, add and see its **members** (name + color avatar).
-  - **Create new task** flow lives here (see "Task draft flow" below).
-- **Main area** — the Kanban board with the four columns (To Do, In Progress, In Review, Done).
+- **Left sidebar** — team & roster workspace:
+  - A top-level **Members** roster, independent of any team.
+  - View and create **teams**. Each team is **collapsible** to save vertical space; add/remove roster members to/from it.
+- **Main area** — the Kanban board with the four columns (To Do, In Progress, In Review, Done). The **new-task draft** lives at the top of the To Do column, not the sidebar.
 
 ### Task draft flow (signature interaction)
 
 Task creation is a two-stage, drag-driven flow rather than a plain form:
 
-1. User starts a new task in the sidebar (enters title, optional description, priority, due date).
-2. To assign people, the user **drags a member from a team section onto the task draft** — the member "attaches" to the draft (shows as an avatar chip on it). Multiple members can be attached (multi-assignee, per our `task_assignees` join table).
-3. When done, the user clicks **"Task ready"** — only then does the task become a real board card that can be dragged into a column. On "Task ready", the task is persisted to Supabase with `status = 'todo'` and its assignees written to `task_assignees`.
+1. User starts a new task at the top of the To Do column (enters title, optional description, priority, due date).
+2. To assign people, the user **drags a member — from the roster or a team — or an entire team at once, onto the task draft**; each attaches as an avatar chip. Multiple members/teams can be attached (multi-assignee, per the `task_assignees` join table).
+3. When done, the user clicks **"Add task"** — only then does the task become a real board card that can be dragged into a column. On submit, the task is persisted to Supabase with `status = 'todo'` and its assignees written to `task_assignees`.
 
-This uses two distinct `@dnd-kit` drag interactions: (a) member → task draft (assignment), and (b) task card → column (status change). Both are optimistic.
+This spans several distinct `@dnd-kit` drag interactions, all optimistic: member → team (roster to team), member/team → the task draft or an open task's assignee zone (assignment), and task card → column or another card (status change / reorder).
 
 ### Color palette
 
@@ -205,7 +221,7 @@ Task cards show a due-date badge driven by `due_date` vs. today:
 ### States (graded)
 
 - **Loading** — skeleton cards/columns while `useTasks()` is fetching, not a bare spinner.
-- **Empty** — thoughtful empty states: empty column ("Nothing here yet"), empty board on first launch, empty team.
+- **Empty** — thoughtful, column-specific copy instead of a generic placeholder: "All quiet. Time to get rolling." (In Progress), "Nothing to nitpick — yet." (In Review), "No wins here yet. Go bag one." (Done); plus empty-roster ("No people yet...") and empty-team ("No teams yet...", "Drag people here from Members.") states in the sidebar.
 - **Error** — clear inline error surfaces with a retry affordance, driven by TanStack Query error states.
 
 ### Responsive
@@ -214,13 +230,13 @@ Board is horizontally scrollable on narrow screens; sidebar collapses to a toggl
 
 ## 8. SQL Migration
 
-The full, runnable schema lives in [`schema.sql`](./schema.sql) — paste into the Supabase SQL Editor and run. It creates all four app tables, indexes, enables RLS on each, and defines owner-only policies (plus the join-table's inherited-scope policies).
+The full, runnable schema lives in [`schema.sql`](./schema.sql) — paste into the Supabase SQL Editor and run. It creates all five app tables, indexes, enables RLS on each, and defines owner-only policies (plus the join tables' inherited-scope policies).
 
 Details worth noting in the DDL beyond the tables/RLS already spec'd:
 
 - **`check` constraints** on `tasks.status` (`todo`/`in_progress`/`in_review`/`done`) and `tasks.priority` (`low`/`normal`/`high`) — enforces the allowed values at the DB level, not just in the UI.
-- **`on delete cascade`** on every FK to `auth.users`, so "Start fresh" (deleting a guest's rows) cleans up teams, tasks, members, and assignments consistently. Cascades also flow teams → members and tasks/members → assignees.
-- **Indexes** on all `user_id` columns plus the join/lookup keys, since every query filters by the guest's id.
+- **`on delete cascade`** on every FK to `auth.users`, so deleting a guest's `auth.users` row (e.g. from the Supabase dashboard) cleans up their teams, tasks, members, and assignments consistently. Cascades also flow through the join tables: deleting a team or a member removes the matching `team_members` link rows (not the member itself); deleting a task or a member removes the matching `task_assignees` link rows.
+- **Indexes** on `tasks.user_id`, `teams.user_id`, and `members.user_id`, plus the join tables' lookup keys (`team_members.member_id`, `task_assignees.member_id`) — every query filters by one of these. `team_members.user_id` is the one owner-shaped column that *isn't* indexed, since (per §4) it isn't actually what RLS checks there.
 - **`default auth.uid()`** on every owner `user_id` column, so client hooks never supply it; RLS `with check` is the sole enforcement rather than also a client footgun.
 - **`updated_at` trigger** on `tasks` (`set_updated_at()` bumps it `before update`), enabling recency sort and future optimistic-concurrency checks without a full activity log.
 - Policies are dropped-and-recreated so the script can be re-run safely during development.
@@ -228,5 +244,53 @@ Details worth noting in the DDL beyond the tables/RLS already spec'd:
 
 This is the first buildable artifact. The schema can be applied to Supabase and verified independently before any frontend code exists.
 
+## 9. Project Scaffolding
+
+Repo layout — one git repo at the root, app isolated in `web/`:
+
+```
+SDE Assessment/            (git repo root)
+├── .gitignore             (root: OS junk, env safety net, confidential PDF)
+├── SPEC.md                (this file)
+├── schema.sql             (Supabase migration)
+└── web/                   (Vite app; Vercel Root Directory = web)
+    ├── .env.local         (real Supabase URL + publishable key; gitignored)
+    ├── .env.example       (committed placeholder template)
+    ├── index.html         (Google Fonts: Instrument Serif + Inter)
+    ├── vite.config.ts     (React + @tailwindcss/vite plugins)
+    └── src/
+        ├── index.css       (Tailwind v4 @import + @theme design tokens; card/glow animations)
+        ├── App.tsx         (DndContext, collision routing, mobile sidebar state)
+        ├── main.tsx        (QueryClientProvider + AuthProvider root)
+        ├── auth/
+        │   └── AuthProvider.tsx   (anon session bootstrap)
+        ├── context/
+        │   ├── NewTaskContext.tsx (in-progress task-draft state)
+        │   └── ToastContext.tsx   (mutation-failure toasts)
+        ├── components/     (UI building blocks — Sidebar, Board, Column, TaskCard, etc.)
+        ├── hooks/          (TanStack Query data hooks — tasks/teams/members)
+        ├── lib/
+        │   ├── supabase.ts       (single typed createClient<Database> instance)
+        │   ├── position.ts       (+ position.test.ts — fractional drag-order math)
+        │   ├── columns.ts        (column defs; move/hover tint class literals)
+        │   ├── dueDate.ts        (overdue / soon / later classification)
+        │   ├── avatarColors.ts   (palette + initials)
+        │   ├── supabaseErrors.ts (Postgres unique-violation check)
+        │   └── queryClient.ts    (shared TanStack Query client)
+        └── types/
+            ├── database.types.ts  (mirrors schema.sql; literal-union status/priority)
+            └── index.ts           (Task, Team, Member, TaskWithAssignees, TeamWithMembers, TaskDraft)
+```
+
+Key versions: React 19, Vite 8, TypeScript 6, Tailwind v4 (CSS-first `@theme`), Node 24 (matches Vercel). Data deps: `@supabase/supabase-js`, `@tanstack/react-query`, `@dnd-kit/{core,sortable,utilities}`, `lucide-react`, `date-fns`. Test deps: `vitest`.
+
+Env vars are `VITE_`-prefixed so Vite exposes them to the client; the publishable key is safe in the frontend (RLS enforces access), and the `service_role` key is never used. Verified: `npm install` + `npm run build` compile clean, `tsc` passes on the typed client and `Database` type, and `npm test` (Vitest) passes the position-math unit tests.
+
+## 10. Deliverable Links
+
+- **GitHub:** https://github.com/milanj08/Task-Board-Project
+- **Supabase project URL:** https://zkkyzysekugsivmbkqjg.supabase.co
+- **Live frontend (Vercel):** _TBD — deployed after the app is built_
+
 ---
-*Next section to define: project scaffolding / repo structure (Vite + React + TS + Tailwind + Supabase client).*
+*Next: build phase — TanStack Query provider + auth gate (guest session), then board/data hooks.*

@@ -1,6 +1,5 @@
-import type { Database } from './database.types'
+import type { Database, TaskPriority } from './database.types'
 
-export type { Database } from './database.types'
 export type { TaskStatus, TaskPriority } from './database.types'
 
 type Tables = Database['public']['Tables']
@@ -8,14 +7,19 @@ type Tables = Database['public']['Tables']
 // Row types (what a select returns)
 export type Team = Tables['teams']['Row']
 export type Task = Tables['tasks']['Row']
-export type TeamMember = Tables['team_members']['Row']
-export type TaskAssignee = Tables['task_assignees']['Row']
+export type Member = Tables['members']['Row']
 
-// Insert types (what create() accepts)
-export type TeamInsert = Tables['teams']['Insert']
-export type TaskInsert = Tables['tasks']['Insert']
-export type TeamMemberInsert = Tables['team_members']['Insert']
-export type TaskAssigneeInsert = Tables['task_assignees']['Insert']
+// A task with its assigned people joined in (used on the board cards)
+export type TaskWithAssignees = Task & { assignees: Member[] }
 
-// A task with its assigned members joined in (used on the board cards)
-export type TaskWithAssignees = Task & { assignees: TeamMember[] }
+// A team with its people joined in (used in the sidebar)
+export type TeamWithMembers = Team & { members: Member[] }
+
+// In-progress task being composed before it hits the board.
+export interface TaskDraft {
+  title: string
+  description: string
+  priority: TaskPriority
+  due_date: string
+  assignees: Member[]
+}

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/milan/.claude/skills/grill-me/**)",
+      "Read(//c/Users/milan/.agents/skills/grill-me/**)",
+      "Read(//c/Users/milan/.claude/skills/**)"
+    ]
+  }
+}

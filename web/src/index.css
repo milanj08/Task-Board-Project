@@ -20,19 +20,19 @@
 
   /* Column accents (accent / soft tint / readable ink) */
   --color-todo: #8aa0f2;
-  --color-todo-tint: #eef1fd;
+  --color-todo-tint: #d3ddfb;
   --color-todo-ink: #34459e;
 
   --color-progress: #f6a96b;
-  --color-progress-tint: #fdf0e4;
+  --color-progress-tint: #fbdcc0;
   --color-progress-ink: #9a5410;
 
   --color-review: #b98bee;
-  --color-review-tint: #f5edfc;
+  --color-review-tint: #e5d5f8;
   --color-review-ink: #6b33a8;
 
   --color-done: #63cfa0;
-  --color-done-tint: #e3f7ee;
+  --color-done-tint: #c4ebd6;
   --color-done-ink: #1b7a54;
 
   /* Semantic accents (priority / due state) */
@@ -66,4 +66,48 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes pop-in {
+  0% { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  60% { opacity: 1; transform: translateY(2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-pop-in {
+  animation: pop-in 0.28s ease-out;
+}
+
+@keyframes dissolve {
+  0% { opacity: 1; filter: blur(0); transform: scale(1) translateY(0); }
+  100% { opacity: 0.04; filter: blur(4px); transform: scale(0.94) translateY(-6px); }
+}
+
+.animate-dissolve {
+  animation: dissolve 4s ease-in forwards;
+}
+
+/* Pulsing glow for a task card currently under a dragged member/team — the
+   ring alone reads as a static state change; the pulse reads as "live". */
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px var(--color-todo), 0 0 10px 2px rgba(138, 160, 242, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 2px var(--color-todo), 0 0 18px 6px rgba(138, 160, 242, 0.85);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 1.1s ease-in-out infinite;
 }

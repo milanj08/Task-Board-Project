@@ -4,36 +4,13 @@
 export type TaskStatus = 'todo' | 'in_progress' | 'in_review' | 'done'
 export type TaskPriority = 'low' | 'normal' | 'high'
 
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
-
 export interface Database {
   public: {
     Tables: {
       teams: {
-        Row: {
-          id: string
-          name: string
-          user_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          user_id?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          user_id?: string
-          created_at?: string
-        }
+        Row: { id: string; name: string; user_id: string; created_at: string }
+        Insert: { id?: string; name: string; user_id?: string; created_at?: string }
+        Update: { id?: string; name?: string; user_id?: string; created_at?: string }
         Relationships: []
       }
       tasks: {
@@ -44,6 +21,7 @@ export interface Database {
           status: TaskStatus
           priority: TaskPriority
           due_date: string | null
+          position: number
           user_id: string
           created_at: string
           updated_at: string
@@ -55,6 +33,7 @@ export interface Database {
           status?: TaskStatus
           priority?: TaskPriority
           due_date?: string | null
+          position?: number
           user_id?: string
           created_at?: string
           updated_at?: string
@@ -66,18 +45,18 @@ export interface Database {
           status?: TaskStatus
           priority?: TaskPriority
           due_date?: string | null
+          position?: number
           user_id?: string
           created_at?: string
           updated_at?: string
         }
         Relationships: []
       }
-      team_members: {
+      members: {
         Row: {
           id: string
           name: string
           color: string | null
-          team_id: string
           user_id: string
           created_at: string
         }
@@ -85,7 +64,6 @@ export interface Database {
           id?: string
           name: string
           color?: string | null
-          team_id: string
           user_id?: string
           created_at?: string
         }
@@ -93,10 +71,15 @@ export interface Database {
           id?: string
           name?: string
           color?: string | null
-          team_id?: string
           user_id?: string
           created_at?: string
         }
+        Relationships: []
+      }
+      team_members: {
+        Row: { team_id: string; member_id: string; user_id: string; created_at: string }
+        Insert: { team_id: string; member_id: string; user_id?: string; created_at?: string }
+        Update: { team_id?: string; member_id?: string; user_id?: string; created_at?: string }
         Relationships: [
           {
             foreignKeyName: 'team_members_team_id_fkey'
@@ -104,24 +87,18 @@ export interface Database {
             referencedRelation: 'teams'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'team_members_member_id_fkey'
+            columns: ['member_id']
+            referencedRelation: 'members'
+            referencedColumns: ['id']
+          },
         ]
       }
       task_assignees: {
-        Row: {
-          task_id: string
-          team_member_id: string
-          created_at: string
-        }
-        Insert: {
-          task_id: string
-          team_member_id: string
-          created_at?: string
-        }
-        Update: {
-          task_id?: string
-          team_member_id?: string
-          created_at?: string
-        }
+        Row: { task_id: string; member_id: string; created_at: string }
+        Insert: { task_id: string; member_id: string; created_at?: string }
+        Update: { task_id?: string; member_id?: string; created_at?: string }
         Relationships: [
           {
             foreignKeyName: 'task_assignees_task_id_fkey'
@@ -130,9 +107,9 @@ export interface Database {
             referencedColumns: ['id']
           },
           {
-            foreignKeyName: 'task_assignees_team_member_id_fkey'
-            columns: ['team_member_id']
-            referencedRelation: 'team_members'
+            foreignKeyName: 'task_assignees_member_id_fkey'
+            columns: ['member_id']
+            referencedRelation: 'members'
             referencedColumns: ['id']
           },
         ]
