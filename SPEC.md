@@ -48,7 +48,6 @@ Six tables total: `tasks` and `teams` (core), `members`, `team_members`, `task_a
 | `position` | double precision, not null, default `extract(epoch from clock_timestamp())` | fractional sort key within a column, so drag-and-drop reordering computes a value between two neighbors instead of renumbering every row on every move; the client (`lib/position.ts`) always sets this explicitly on create/move, the column default is just a same-convention (epoch-seconds) fallback |
 | `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` on delete cascade | ties task to guest session; what RLS checks |
 | `created_at` | timestamptz, not null, default `now()` | auto-set |
-| `updated_at` | timestamptz, not null, default `now()`, trigger-bumped | auto-updates on every edit/move; enables recency sorting & optimistic-concurrency checks |
 
 ### `members` (canonical roster)
 
@@ -68,10 +67,9 @@ A person is one row here no matter how many teams they're on or tasks they're as
 |---|---|---|
 | `team_id` | uuid, not null, references `teams(id)` on delete cascade | which team |
 | `member_id` | uuid, not null, references `members(id)` on delete cascade | which person |
-| `user_id` | uuid, not null, default `auth.uid()`, references `auth.users` on delete cascade | denormalized guest tag — see RLS note below, it isn't actually what enforces access |
 | `created_at` | timestamptz, not null, default `now()` | when added to the team |
 
-Primary key: `(team_id, member_id)` — a person appears at most once per team, but the same person can belong to multiple teams (many-to-many).
+Primary key: `(team_id, member_id)` — a person appears at most once per team, but the same person can belong to multiple teams (many-to-many). No `user_id` column — same as `task_assignees`, scope is inherited entirely through the `teams` and `members` rows it links (see RLS below).
 
 ### `task_assignees` (join: task ↔ person)
 
@@ -110,7 +108,7 @@ AND
 EXISTS (SELECT 1 FROM members m WHERE m.id = team_members.member_id AND m.user_id = auth.uid())
 ```
 
-So a guest can never link their team to someone else's roster entry, or vice versa, even by guessing a UUID. Note this table *does* carry its own `user_id` column, but it isn't what the policies check — it's unindexed and effectively decorative today, kept only for shape-consistency with the other tables rather than as the actual enforcement path.
+So a guest can never link their team to someone else's roster entry, or vice versa, even by guessing a UUID. This table has no `user_id` column of its own — same as `task_assignees` below, scope is inherited entirely through the tables it links.
 
 ### `task_assignees`
 
@@ -157,17 +155,18 @@ main.tsx
         └── App
             └── AuthGate                    (renders children once the session is ready)
                 └── ToastProvider           (mutation-failure toasts)
-                    └── NewTaskProvider     (in-progress task-draft state)
-                        └── Workspace       (DndContext lives here — owns drag state)
-                            ├── Sidebar
-                            │   ├── MembersSection          (roster: add/remove people)
-                            │   └── TeamSection  ×N          (collapsible; add/remove people per team)
-                            │       └── DraggableMember  ×N
-                            └── Board
-                                └── Column  ×4                (droppable; todo / in_progress / in_review / done)
-                                    ├── AddTaskCard            (To Do column only — new-task draft + drop target)
-                                    └── DraggableTaskCard  ×N
-                                        └── TaskCard            (title, badges, assignees; reused in the DragOverlay)
+                    └── WinsProvider        (completed-task tally, persisted in localStorage)
+                        └── NewTaskProvider     (in-progress task-draft state)
+                            └── Workspace       (DndContext lives here — owns drag state)
+                                ├── Sidebar
+                                │   ├── MembersSection          (roster: add/remove people)
+                                │   └── TeamSection  ×N          (collapsible; add/remove people per team)
+                                │       └── DraggableMember  ×N
+                                └── Board
+                                    └── Column  ×4                (droppable; todo / in_progress / in_review / done)
+                                        ├── AddTaskCard            (To Do column only — new-task draft + drop target)
+                                        └── DraggableTaskCard  ×N
+                                            └── TaskCard            (title, badges, assignees; reused in the DragOverlay)
 ```
 
 ### Drag-and-drop
@@ -236,9 +235,8 @@ Details worth noting in the DDL beyond the tables/RLS already spec'd:
 
 - **`check` constraints** on `tasks.status` (`todo`/`in_progress`/`in_review`/`done`) and `tasks.priority` (`low`/`normal`/`high`) — enforces the allowed values at the DB level, not just in the UI.
 - **`on delete cascade`** on every FK to `auth.users`, so deleting a guest's `auth.users` row (e.g. from the Supabase dashboard) cleans up their teams, tasks, members, and assignments consistently. Cascades also flow through the join tables: deleting a team or a member removes the matching `team_members` link rows (not the member itself); deleting a task or a member removes the matching `task_assignees` link rows.
-- **Indexes** on `tasks.user_id`, `teams.user_id`, and `members.user_id`, plus the join tables' lookup keys (`team_members.member_id`, `task_assignees.member_id`) — every query filters by one of these. `team_members.user_id` is the one owner-shaped column that *isn't* indexed, since (per §4) it isn't actually what RLS checks there.
+- **Indexes** on `tasks.user_id`, `teams.user_id`, and `members.user_id`, plus both join tables' lookup keys (`team_members.member_id`, `task_assignees.member_id`) — every query filters by one of these.
 - **`default auth.uid()`** on every owner `user_id` column, so client hooks never supply it; RLS `with check` is the sole enforcement rather than also a client footgun.
-- **`updated_at` trigger** on `tasks` (`set_updated_at()` bumps it `before update`), enabling recency sort and future optimistic-concurrency checks without a full activity log.
 - Policies are dropped-and-recreated so the script can be re-run safely during development.
 - **Run-once on a clean project.** The file uses `create table if not exists` and assumes a fresh Supabase project — running it once builds the full schema. It is not written to reconcile column/constraint changes onto tables that already exist; if the schema evolves later, apply changes with explicit `alter table` migrations.
 

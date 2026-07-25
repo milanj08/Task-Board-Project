@@ -24,7 +24,6 @@ export interface Database {
           position: number
           user_id: string
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
@@ -36,7 +35,6 @@ export interface Database {
           position?: number
           user_id?: string
           created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: string
@@ -48,7 +46,6 @@ export interface Database {
           position?: number
           user_id?: string
           created_at?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -77,9 +74,9 @@ export interface Database {
         Relationships: []
       }
       team_members: {
-        Row: { team_id: string; member_id: string; user_id: string; created_at: string }
-        Insert: { team_id: string; member_id: string; user_id?: string; created_at?: string }
-        Update: { team_id?: string; member_id?: string; user_id?: string; created_at?: string }
+        Row: { team_id: string; member_id: string; created_at: string }
+        Insert: { team_id: string; member_id: string; created_at?: string }
+        Update: { team_id?: string; member_id?: string; created_at?: string }
         Relationships: [
           {
             foreignKeyName: 'team_members_team_id_fkey'

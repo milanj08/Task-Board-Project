@@ -30,8 +30,7 @@ create table if not exists public.tasks (
   due_date    date,
   position    double precision not null default extract(epoch from clock_timestamp()),
   user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  created_at  timestamptz not null default now()
 );
 
 -- Canonical roster of people. Names are unique per guest.
@@ -48,7 +47,6 @@ create table if not exists public.members (
 create table if not exists public.team_members (
   team_id    uuid not null references public.teams (id) on delete cascade,
   member_id  uuid not null references public.members (id) on delete cascade,
-  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (team_id, member_id)
 );
@@ -67,23 +65,6 @@ create index if not exists idx_teams_user_id          on public.teams (user_id);
 create index if not exists idx_members_user_id        on public.members (user_id);
 create index if not exists idx_team_members_member    on public.team_members (member_id);
 create index if not exists idx_task_assignees_member  on public.task_assignees (member_id);
-
--- ------------------------------------------------------------
--- updated_at trigger (tasks)
--- ------------------------------------------------------------
-
-create or replace function public.set_updated_at()
-returns trigger language plpgsql as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists trg_tasks_updated_at on public.tasks;
-create trigger trg_tasks_updated_at
-  before update on public.tasks
-  for each row execute function public.set_updated_at();
 
 -- ------------------------------------------------------------
 -- Row Level Security

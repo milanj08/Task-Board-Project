@@ -40,11 +40,9 @@
   --color-high-tint: #fbe6e5;
   --color-high-ink: #9a2e2a;
 
-  --color-due: #f2b34c;
   --color-due-tint: #fdeee1;
   --color-due-ink: #9a5410;
 
-  --color-low: #86bee8;
   --color-low-tint: #e4f0fa;
   --color-low-ink: #2c6ea0;
 }
@@ -66,16 +64,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-4px); }
-  40%, 80% { transform: translateX(4px); }
-}
-
-.animate-shake {
-  animation: shake 0.4s ease-in-out;
 }
 
 @keyframes pop-in {

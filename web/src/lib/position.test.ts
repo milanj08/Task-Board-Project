@@ -14,7 +14,6 @@ function makeTask(overrides: Partial<TaskWithAssignees> & { position: number }):
     due_date: null,
     user_id: 'guest',
     created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
     assignees: [],
     ...overrides,
   }
