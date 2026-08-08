@@ -30,6 +30,9 @@ in that browser.
   column-specific empty copy, and toasts when a write fails.
 - **Mobile support.** The board scrolls horizontally and the sidebar becomes an
   overlay drawer.
+- **Sample board.** An empty board offers to fill itself with a small sample
+  roster, team and set of cards. Once there's anything on the board, the same
+  button becomes "Clear board" behind a two-step confirm.
 
 ---
 
@@ -163,49 +166,10 @@ behind the data model.
 cd web && npm test
 ```
 
-12 Vitest cases covering `lib/position.ts` — the fractional-ordering math behind
+14 Vitest cases covering `lib/position.ts` — the fractional-ordering math behind
 drag-and-drop. That's the part with real edge cases: dropping at the top of a
-column, at the bottom, between two neighbours, and onto a different column.
-
----
-
-## Known gaps
-
-Things I know are missing or imperfect, and why:
-
-- **No CI.** The tests exist but nothing runs them on push. This is the next
-  thing I'd add.
-- **Test coverage is narrow.** Only `position.ts` is covered. `dueDate.ts`,
-  `avatarColors.ts` and `supabaseErrors.ts` are pure functions and equally
-  testable — I just haven't written them. There are no component or
-  integration tests at all.
-- **A new board starts completely empty.** A first-time visitor sees four empty
-  columns and has to build everything by hand to see the app work. A "load a
-  sample board" button on the empty state would fix this.
-- **A gap between two cards can run out of room.** Positions are doubles and
-  each drop halves the gap, so dropping into the same one about fifty times
-  exhausts it. The board detects that and refuses the drop — the card animates
-  back where it came from rather than taking a duplicate position and sorting
-  unpredictably. Refusing is the safe answer, not the right one; the real fix is
-  renumbering that column so the drop can succeed.
-- **RLS is not tested automatically.** The policies were verified by hand in the
-  Supabase SQL editor — querying as one session and confirming another
-  session's rows were invisible. Nothing re-checks that on change.
-- **`schema.sql` is run-once, not a migration.** Applying it to a project that
-  already has these tables won't reconcile column or constraint changes. Real
-  migrations would need explicit `alter table` steps.
-- **There's no way to start a new board.** The anonymous session persists in
-  `localStorage`, so the only way to get a fresh identity is to clear browser
-  storage or switch browsers. An in-app reset would be a small addition.
-- **Sessions are per-browser.** Anonymous auth means no account, so a board
-  can't follow you to another device. Real auth would change that, and the
-  schema wouldn't need to change — `user_id` already carries the ownership.
-- **Deleting a member is not undoable.** Removal is behind a two-step confirm,
-  but once it's gone, the cascade removes their team links and task
-  assignments with it.
-- **It ships as one 540 kB bundle** (155 kB gzipped) and the build warns about
-  it. Everything loads up front with no code splitting. Fine at this size, but
-  route- or component-level `import()` is where I'd start if it grew.
+column, at the bottom, between two neighbours, onto a different column, and into
+a gap that has run out of floating-point room.
 
 ---
 

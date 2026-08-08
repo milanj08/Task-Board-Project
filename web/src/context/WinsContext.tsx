@@ -17,6 +17,7 @@ function readStoredWins(): number {
 interface WinsValue {
   wins: number
   recordWin: () => void
+  resetWins: () => void
 }
 
 const WinsContext = createContext<WinsValue | undefined>(undefined)
@@ -32,7 +33,16 @@ export function WinsProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  return <WinsContext.Provider value={{ wins, recordWin }}>{children}</WinsContext.Provider>
+  // Clearing the board puts it back to a first-visit state, and a tally of wins
+  // from tasks that no longer exist would contradict that.
+  function resetWins() {
+    window.localStorage.removeItem(STORAGE_KEY)
+    setWins(0)
+  }
+
+  return (
+    <WinsContext.Provider value={{ wins, recordWin, resetWins }}>{children}</WinsContext.Provider>
+  )
 }
 
 // eslint-disable-next-line react-refresh/only-export-components

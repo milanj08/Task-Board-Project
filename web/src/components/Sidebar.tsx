@@ -4,6 +4,7 @@ import { Minus, Plus, X } from 'lucide-react'
 import { useTeams, useCreateTeam } from '../hooks/useTeams'
 import { TeamSection } from './TeamSection'
 import { MembersSection } from './MembersSection'
+import { SampleBoardButton } from './SampleBoardButton'
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: teams, isLoading, isError } = useTeams()
@@ -88,6 +89,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             <TeamSection key={team.id} team={team} />
           ))}
         </div>
+
+        <SampleBoardButton />
       </aside>
     </>
   )
