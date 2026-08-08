@@ -104,4 +104,32 @@ describe('computeMove', () => {
     const result = computeMove([active, o1, o2], active, { id: o1.id, type: 'task' })
     expect(result).toEqual({ status: 'in_progress', position: 0 })
   })
+
+  it('refuses the move when the gap between two neighbors has no room left', () => {
+    // 1 and 1 + EPSILON are adjacent doubles — there is no number between them,
+    // so the midpoint rounds back down to the lower one.
+    const lower = 1
+    const upper = 1 + Number.EPSILON
+    expect((lower + upper) / 2).toBe(lower)
+
+    const active = makeTask({ status: 'todo', position: 0 })
+    const o1 = makeTask({ status: 'in_progress', position: lower })
+    const o2 = makeTask({ status: 'in_progress', position: upper })
+    const o3 = makeTask({ status: 'in_progress', position: 5 })
+    // Aim `active` at o2, which puts it between o1 and o2 — the exhausted gap.
+    const result = computeMove([active, o1, o2, o3], active, { id: o2.id, type: 'task' })
+    expect(result).toBeNull()
+  })
+
+  it('still allows a move into a gap that has room', () => {
+    const active = makeTask({ status: 'todo', position: 0 })
+    const o1 = makeTask({ status: 'in_progress', position: 1 })
+    const o2 = makeTask({ status: 'in_progress', position: 1 + Number.EPSILON })
+    const o3 = makeTask({ status: 'in_progress', position: 5 })
+    // Aiming at o3 lands between o2 and o3, which is still a wide gap.
+    const result = computeMove([active, o1, o2, o3], active, { id: o3.id, type: 'task' })
+    expect(result).not.toBeNull()
+    expect(result!.position).toBeGreaterThan(o2.position)
+    expect(result!.position).toBeLessThan(o3.position)
+  })
 })

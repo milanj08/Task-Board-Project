@@ -182,6 +182,12 @@ Things I know are missing or imperfect, and why:
 - **A new board starts completely empty.** A first-time visitor sees four empty
   columns and has to build everything by hand to see the app work. A "load a
   sample board" button on the empty state would fix this.
+- **A gap between two cards can run out of room.** Positions are doubles and
+  each drop halves the gap, so dropping into the same one about fifty times
+  exhausts it. The board detects that and refuses the drop — the card animates
+  back where it came from rather than taking a duplicate position and sorting
+  unpredictably. Refusing is the safe answer, not the right one; the real fix is
+  renumbering that column so the drop can succeed.
 - **RLS is not tested automatically.** The policies were verified by hand in the
   Supabase SQL editor — querying as one session and confirming another
   session's rows were invisible. Nothing re-checks that on change.

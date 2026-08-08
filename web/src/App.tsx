@@ -194,8 +194,15 @@ function Workspace() {
         id: String(over.id),
         type: over.data.current?.type as string | undefined,
       })
+      // No position to give the card — either it was dropped on itself, or the
+      // gap it was aimed at has run out of precision. Send it back where it came
+      // from rather than moving it somewhere it wasn't dropped.
+      if (!move) {
+        setDropAnimation(bounceBack)
+        return
+      }
       setDropAnimation(null)
-      if (move && (move.status !== drag.task.status || move.position !== drag.task.position)) {
+      if (move.status !== drag.task.status || move.position !== drag.task.position) {
         moveTask.mutate({ id: drag.task.id, status: move.status, position: move.position })
       }
       return
