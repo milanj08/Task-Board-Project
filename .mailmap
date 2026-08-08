@@ -1,0 +1,10 @@
+# Maps the git identities used during this project onto one person, so
+# `git shortlog -sn` and `git log` report contribution honestly.
+#
+# Commits were made from two machines configured with different emails (a
+# personal address and a university address), which split one contributor
+# across two identities.
+#
+# Format:  Canonical Name <canonical@email> Commit Name <commit@email>
+
+Milan Joksimovic <milanjoksimovic08@yahoo.com> Milan Joksimovic <mjoks2@uic.edu>

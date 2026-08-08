@@ -6,9 +6,10 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Claude Code: settings.json is shared project config; settings.local.json is
-# personal/machine-specific and shouldn't be committed.
-.claude/settings.local.json
+# Editor/tool config tied to this machine — the paths inside point at a local
+# home directory, so it's useless to anyone else cloning. Same reasoning as
+# .idea/ and .vscode/ above.
+.claude/
 
 # Safety net: never commit environment files or dependencies at the repo root.
 # (web/ has its own .gitignore covering node_modules, dist, and *.local.)
@@ -17,8 +18,12 @@ Thumbs.db
 !.env.example
 node_modules/
 
-# Confidential assessment brief — must never be pushed to a public repo.
-NP SDE Assessment Challenge.pdf
+# Private working files kept in this folder but never published — reference
+# documents and personal notes. Code and project docs are committed; these
+# working files are not.
+*.pdf
+*.docx
+video_talking_points.md
 
 # Stray empty lockfile created at the repo root by accident (safe to delete).
 /package-lock.json

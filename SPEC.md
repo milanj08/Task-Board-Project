@@ -1,12 +1,12 @@
 # Task Board — Project Spec
 
-Working spec for the Next Play Games SDE internship assessment. Built incrementally, section by section.
+Working spec for the Task Board project. Written before the code and updated as the build progressed, section by section.
 
 ## 1. Overview
 
 A Kanban-style task board (Asana/Linear/Notion-inspired) where guest users create tasks and drag them across four columns: To Do, In Progress, In Review, Done. Each guest sees only their own tasks. Tasks persist in Supabase behind Row Level Security.
 
-**Success criteria (from the assessment):** polished design, smooth drag-and-drop, real Supabase persistence with RLS, guest auth isolation, clear loading/error states, and a deployed live URL.
+**What it has to get right:** polished design, smooth drag-and-drop, real Supabase persistence with RLS, guest auth isolation, clear loading/error states, and a deployed live URL.
 
 ## 2. Stack
 
@@ -14,7 +14,7 @@ A Kanban-style task board (Asana/Linear/Notion-inspired) where guest users creat
 |---|---|---|
 | Frontend | React (web) + TypeScript | Fastest path to a hosted live URL; TS gives type safety across the data model and drag-and-drop state. |
 | Backend | None — Supabase called directly from the frontend | Supabase JS client + RLS is sufficient for this scope; skips building/hosting a separate API. |
-| Database & Auth | Supabase (Postgres, Anonymous Auth, RLS) | Required by the assessment. |
+| Database & Auth | Supabase (Postgres, Anonymous Auth, RLS) | Managed Postgres with authorization in the database, so the frontend can talk to it directly with no API layer to build or host. |
 | Hosting | Vercel | Free tier, zero-config for a Vite/Next React app. |
 | Drag-and-drop | `@dnd-kit` | Actively maintained, accessible, works well with column-based Kanban layouts (lighter and more flexible than `react-beautiful-dnd`, which is unmaintained). |
 | Styling | Tailwind CSS | Fast to build a cohesive design system (spacing, color, type scale) without hand-rolling CSS. |
@@ -225,7 +225,7 @@ Task cards show a due-date badge driven by `due_date` vs. today:
 
 ### Responsive
 
-Board is horizontally scrollable on narrow screens; sidebar collapses to a toggle on mobile. Responsive is a "plus" per the assessment, targeted but not over-invested.
+Board is horizontally scrollable on narrow screens; sidebar collapses to a toggle on mobile. Responsive is a secondary goal here — targeted, but deliberately not over-invested in.
 
 ## 8. SQL Migration
 
@@ -247,8 +247,10 @@ This is the first buildable artifact. The schema can be applied to Supabase and 
 Repo layout — one git repo at the root, app isolated in `web/`:
 
 ```
-SDE Assessment/            (git repo root)
-├── .gitignore             (root: OS junk, env safety net, confidential PDF)
+Task-Board-Project/        (git repo root)
+├── .gitignore             (root: OS junk, env safety net)
+├── .mailmap               (collapses two git identities onto one author)
+├── README.md              (what it is, setup from a clean clone, known gaps)
 ├── SPEC.md                (this file)
 ├── schema.sql             (Supabase migration)
 └── web/                   (Vite app; Vercel Root Directory = web)
@@ -284,7 +286,7 @@ Key versions: React 19, Vite 8, TypeScript 6, Tailwind v4 (CSS-first `@theme`), 
 
 Env vars are `VITE_`-prefixed so Vite exposes them to the client; the publishable key is safe in the frontend (RLS enforces access), and the `service_role` key is never used. Verified: `npm install` + `npm run build` compile clean, `tsc` passes on the typed client and `Database` type, and `npm test` (Vitest) passes the position-math unit tests.
 
-## 10. Deliverable Links
+## 10. Links
 
 - **GitHub:** https://github.com/milanj08/Task-Board-Project
 - **Supabase project URL:** https://zkkyzysekugsivmbkqjg.supabase.co
