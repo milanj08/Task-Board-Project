@@ -1,0 +1,4 @@
+# Store LF line endings in the repo and check out LF everywhere, so the files
+# are the same on Windows, macOS and Linux. Without this, Git on Windows
+# rewrites to CRLF on checkout and warns about it on every `git add`.
+* text=auto eol=lf
